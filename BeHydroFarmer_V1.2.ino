@@ -101,12 +101,12 @@ RTC_DS3231 rtc;                   // Modulo del tiempo, comunicacion I2C, nos di
 
 
 //---------------------------SENSOR DE TEMPERATURA DEL AGUA---------------------------
-OneWire ourWire(11);              //Sensor de temperatura del agua
-DallasTemperature TempAqua(&ourWire); //Libreria utilizada para controlar el sensor de temperatura del agua
+//OneWire ourWire(11);              //Sensor de temperatura del agua
+//DallasTemperature TempAqua(&ourWire); //Libreria utilizada para controlar el sensor de temperatura del agua
 
 
 void setup() {
-
+    delay(100);                //Tiempo de retardo para estabilizar el void setup
     wdt_disable();                //Inicializamos el perro guardian para que cuanto el sistema se bloquee este se reinicie y vuelva a ejecutar el code
     pantalla.begin(9600);         //Inicializamos la conexion serial de la pantalla
     Serial.begin(9600);           //Inicializamos el puerto serial para poder visualizar los sensores en un monitor serial
@@ -114,7 +114,7 @@ void setup() {
     Wire.begin();                 //Inicializamos la libreria Wire para la comunicacion I2C
     Lumex.begin(BH1750::CONTINUOUS_HIGH_RES_MODE);  //Inicializamos el sensor de luminosidad con su modo en HIGH
     rtc.begin();                  //Inicializamos el modulo de reloj 
-    TempAqua.begin();             //Inicializamos el sensor de temperatura del agua
+   // TempAqua.begin();             //Inicializamos el sensor de temperatura del agua
 
    
 //-----------------------------------------------------------------------------------  
@@ -127,12 +127,13 @@ void setup() {
 
 //-----------------------------------------------------------------------------------
       
-    wdt_enable(WDTO_4S);          //Tiempo de espera del perro guardian para hacer un resect del codigo si se queda en un bucle infinito
+  wdt_enable(WDTO_4S);          //Tiempo de espera del perro guardian para hacer un resect del codigo si se queda en un bucle infinito
    Tira1LucesOff();
   Tira2LucesOff();
   Tira3LucesOff();
   Tira4LucesOff();
-     delay(100);                  //Tiempo de retardo para estabilizar el void setup
+  Serial.println("Sistema encendido");
+  
 }
 
 
@@ -142,16 +143,19 @@ void setup() {
 void loop() {
 
   wdt_reset();                    //Funcion del perro guardian
-  TempAqua.requestTemperatures(); //Funcion del sensor de temperatura del agua
-  int valorTempAqua= TempAqua.getTempCByIndex(0);   //Variable que almacena los datos arrojados por el sensor de temperatura del agua
+  //TempAqua.requestTemperatures(); //Funcion del sensor de temperatura del agua
+  //int valorTempAqua= TempAqua.getTempCByIndex(0);   //Variable que almacena los datos arrojados por el sensor de temperatura del agua
   int valorLumex = Lumex.readLightLevel();  //Variable que almacena los datos arrojados por el sensor de luminosidad
   DateTime now = rtc.now();       //Funcion que toma el valor del tiempo entrado por el modulo RTC
   int t = dht.readTemperature();  //Variable que almacena los datos arrojados por el sensor de temperatura 
   int h = dht.readHumidity();     //Variable que almacena los datos arrojados por el sensor de humedad
   time = millis();                //Funcion del tiempo en millis
   boolean activacionLumex;        //Variable de dos valores para hacer la activacion o desactivacion de sensor de luminosidad
-   
-
+  int activacionFullspectre = 0;
+  int activacionRojo = 0;
+  int activacionAzul = 0;
+  
+ 
   if (pantalla.available()){      //Condicional que asigna los datos de la comunicacion serial a la variable data
         Data = pantalla.read();
   }
@@ -225,7 +229,7 @@ void loop() {
 
   
 
-
+/*
            
 //------------------------------------- ENCEDIDO DE LUCES POR NIVELES------------------------------------
       case 4:                     //Confirmacion de encendido del nivel 1 de las luces RGB                
@@ -306,63 +310,142 @@ void loop() {
           switch (contadorTira1FullSpectre)
             {
             case 1:
-              if(contadorActivacionNivel1==1 && contadorTira1FullSpectre==1)
-                  {
-                    Tira1LucesFullSpectre();
-                    Serial.println("Luz nivel 1 Full Spectre activada");
-                  }
+              Serial.println("boton luces fullSpectre Activado");
                 break;
 
 
             case 2:             
-              Tira1LucesOff();
+              
               contadorTira1FullSpectre = 0;
-              Serial.println("Luz nivel 1 Full Spectre Apagada");
-
+              Serial.println("boton luces fullSpectre desactivado");
+              break;
             }
+              break;
 
       case 9:                   //Condicional para evalular si el nivel 1 esta encendido y si se encendio el color Rojo 
         contadorTira1Rojo++;
           switch (contadorTira1Rojo)
             {
             case 1:
-              if(contadorActivacionNivel1==1 && contadorTira1Rojo==1)
-                  {
-                    Tira1LucesRojo();
-                    Serial.println("Luz nivel 1 Rojo activada");
-                  }
+              Serial.println("boton luces Rojo activado");
                 break;
 
 
             case 2:
-              Tira1LucesOff();
+              
               contadorTira1Rojo = 0;
-              Serial.println("Luz nivel 1 Rojo Apagada");
-
+              Serial.println("boton luces Rojo desactivado");
+              break;
             }
+              break;
 
       case 10:                  //Condicional para evalular si el nivel 1 esta encendido y si se encendio el color Azul
         contadorTira1Azul++;
           switch (contadorTira1Azul)
             {
             case 1:
-              if(contadorActivacionNivel1==1 && contadorTira1Azul==1)
-                  {
-                    Tira1LucesAzul();
-                    Serial.println("Luz nivel 1 Azul activada");
-                  }
+              Serial.println("boton luces Azul activado");
+                  
                 break;
 
 
             case 2:
-              Tira1LucesOff();
+              
               contadorTira1Azul = 0;
               Serial.println("Luz nivel 1 Azul Apagada");
+                break;
 
             }
+                break;
   }
 
-  
+              if(contadorActivacionNivel1==1 && contadorTira1FullSpectre==1)
+                  {           
+                   activacionFullspectre = 1;
+                  }
+               if(contadorActivacionNivel1==1 && contadorTira1FullSpectre==0)
+                    {
+                     activacionFullspectre = 2;
+                    }
+                 if(contadorActivacionNivel1==0 && contadorTira1FullSpectre==1)
+                    {
+                     activacionFullspectre = 2;
+                    }
+                      switch(activacionFullspectre)
+                        {
+                          case 1:
+                            Tira1LucesFullSpectre();
+                            Serial.println("Luz nivel 1 Full Spectre activada");
+                            break;
+
+                              case 2:
+                                Tira1LucesOff();
+                                Serial.println("Luz nivel 1 Full Spectre desactivada");
+                                activacionFullspectre = 0;
+                                break;
+                        }
+
+
+                  if(contadorActivacionNivel1==1 && contadorTira1Azul==1)
+                  {           
+                   activacionAzul = 1;
+                  }
+                   if(contadorActivacionNivel1==1 && contadorTira1Azul==0)
+                    {
+                     activacionAzul = 2;
+                    }
+                   if(contadorActivacionNivel1==0 && contadorTira1Azul==1)
+                    {
+                     activacionAzul = 2;
+                    }
+                      switch(activacionAzul)
+                        {
+                          case 1:
+                            Tira1LucesAzul();
+                            Serial.println("Luz nivel 1 Azul activada");
+                            break;
+
+                              case 2:
+                                Tira1LucesOff();
+                                Serial.println("Luz nivel 1 Azul desactivada");
+                                activacionAzul = 0;
+                                break;
+                        }
+
+
+                  if(contadorActivacionNivel1==1 && contadorTira1Rojo==1)
+                      {           
+                      activacionRojo = 1;
+                      }
+                  if(contadorActivacionNivel1==1 && contadorTira1Rojo==0)
+                        {
+                        activacionRojo = 2;
+                        }
+                    if(contadorActivacionNivel1==0 && contadorTira1Rojo==1)
+                        {
+                        activacionRojo = 2;
+                        }
+                          switch(activacionRojo)
+                        {
+                          case 1:
+                            Tira1LucesRojo();
+                            Serial.println("Luz nivel 1 Rojo activada");
+                            break;
+
+                              case 2:
+                                Tira1LucesOff();
+                                Serial.println("Luz nivel 1 Rojo desactivada");
+                                activacionFullspectre = 0;
+                                break;
+                        }
+                    
+        */
+  }              
+
+
+             
+/*
+ 
    switch(now.hour())
    {
       case 18:
@@ -396,7 +479,7 @@ void loop() {
         break;
    }   
       
-        
+       
       while (activacionLumex == true){
         if (valorLumex <= 30){
           Tira1LucesFullSpectre();
@@ -404,11 +487,12 @@ void loop() {
           Tira3LucesFullSpectre();
           Tira4LucesFullSpectre();
       }
-      }
       
-        if (time-tr > tiempo){
-        tr = time;      
-  
+      }
+     */ 
+         
+   if (time-tr > tiempo){
+        tr = time; 
         pantalla.print("Temperatura.val=");
         pantalla.print(t);
         pantalla.write(0xff);
@@ -429,20 +513,22 @@ void loop() {
         pantalla.write(0xff);
 
         pantalla.print("TempAq.val=");
-        pantalla.print(valorTempAqua);
+       // pantalla.print(valorTempAqua);
         pantalla.write(0xff);
         pantalla.write(0xff);
         pantalla.write(0xff);
+        
 
-        Serial.print("___________________________________________________________  "); Serial.println("  ___________________________________________________________");
-        Serial.print("                 Ambiente Sensor                           "); Serial.println("                      Aqua Sensor                          ");
-        Serial.print("___________________________________________________________  "); Serial.println("  ___________________________________________________________");
+     //   Serial.print("___________________________________________________________  "); Serial.println("  ___________________________________________________________");
+      //  Serial.print("                 Ambiente Sensor                           "); Serial.println("                      Aqua Sensor                          ");
+       // Serial.print("___________________________________________________________  "); Serial.println("  ___________________________________________________________");
+        
         Serial.print("Temperatura = "); Serial.print(t); Serial.print(" | "); 
         Serial.print("Humedad = "); Serial.print(h); Serial.print(" | ");  
-        Serial.print("Luminosidad = "); Serial.print(valorLumex); Serial.print(" |         "); 
-        Serial.print("Temperatura del aqua = "); Serial.println(valorTempAqua); Serial.print(" | ");
+        Serial.print("Luminosidad = "); Serial.print(valorLumex); Serial.println(" |         "); //Serial.println("Temperatura del aqua = "); 
+        //Serial.println(valorTempAqua); Serial.print(" | ");
    
-        }
+   }
    
     }
    
