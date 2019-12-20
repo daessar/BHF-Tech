@@ -16,15 +16,16 @@ ________________________________________________________________________________
 #include <OneWire.h>                
 #include <DallasTemperature.h>
 #include <avr/wdt.h>
+#include <EEPROM.h>
 
 //------------------------------ DEFINICION DE PINES ------------------------------
 //-------------------------------- LUCES RGB  -------------------------------------
-#define T1green 7
-#define T1red 6
-#define T1blue 5
-#define T2green 24
+#define T1green 6
+#define T1red 7
+#define T1blue 8
+#define T2green 22
 #define T2red 23
-#define T2blue 22
+#define T2blue 24
 #define T3green 25
 #define T3red 26
 #define T3blue 27
@@ -36,9 +37,19 @@ ________________________________________________________________________________
 #define ResCalefactora 32
 #define trece 13
 //---------------------------- SENSOR ULTRASONICO---------------------------------
-#define Trigger 4                       //Sensor ultrasonico destinado a medir el nivel de agua en el tanque         
-#define Echo 3
-
+#define PinTrig 3                       //Sensor ultrasonico destinado a medir el nivel de agua en el tanque         
+#define PinEcho 4
+// Constante velocidad sonido en cm/s
+const float VelSon = 34000.0;
+float distancia;
+// Número de muestras
+const int numLecturas = 50;
+ 
+float lecturas[numLecturas]; // Array para almacenar lecturas
+int lecturaActual = 0; // Lectura por la que vamos
+float total = 0; // Total de las que llevamos
+float media = 0; // Media de las medidas
+bool primeraMedia = false; // Para saber que ya hemos calculado por lo menos una
 //---------------------------- VARIABLES DEL SISTEMA ----------------------------------
 char RGB[4][3] =
 {
@@ -97,9 +108,43 @@ long anio; //variable año
 
 DateTime HoraFecha;
 
+
 //---------------------------SENSOR DE TEMPERATURA DEL AGUA---------------------------
-//OneWire ourWire(11);              //Sensor de temperatura del agua
-//DallasTemperature TempAqua(&ourWire); //Libreria utilizada para controlar el sensor de temperatura del agua
+OneWire ourWire(11);              //Sensor de temperatura del agua
+DallasTemperature TempAqua(&ourWire); //Libreria utilizada para controlar el sensor de temperatura del agua
+
+//----------------------------SENSOR DE CONDUCTIVIDAD ELECTRICA--------------------------
+// CONSTANTS / SETTINGS
+
+const byte    POWER_PIN       = 35;        // Digital pin to use for powering pulse circuit
+const byte    EC_PIN          = A0;       // Analog pin used to read EC Meter volage 
+
+const int     READ_DURATION   = 100;      // Amount of time to take reading for (ms)
+const int     READ_INTERVAL   = 6000;     // Amount of time between readings (ms)
+
+const String  SERIAL_OUTPUT_DELIMITER   = "  Voltaje  ";    // Cordoba expects a comma-delimited string
+const int     SERIAL_OUTPUT_INTERVAL    = 175;    // Amount of time between serial outputs
+
+// TIMESTAMPS
+
+unsigned long currentTime     = 0;
+unsigned long readStartTime   = 0;        // Time that the EC Meter read process starts
+unsigned long lastOutputTime  = 0;        // Time of last serial output
+
+// SENSORS
+
+float ecMeterReading = 0;
+float ecMeterVoltage = 0;
+int PPM = 0;
+
+//------------------------------------------------EEPROM MEMORY --------------------------------------------------
+
+String EstadoLuz;
+
+int ContadorHoras;
+byte EstadoLuzMemoria;
+
+
 
 
 void setup() {
@@ -112,26 +157,50 @@ void setup() {
     Wire.begin();                 //Inicializamos la libreria Wire para la comunicacion I2C
     Lumex.begin(BH1750::CONTINUOUS_HIGH_RES_MODE);  //Inicializamos el sensor de luminosidad con su modo en HIGH
     rtc.begin();                  //Inicializamos el modulo de reloj 
-   // TempAqua.begin();             //Inicializamos el sensor de temperatura del agua
-    //rtc.adjust(DateTime(__DATE__, __TIME__)); // Lee la fecha y hora del PC (Solo en la primera carga)
-                                           
-   
-//-----------------------------------------------------------------------------------  
-    pinMode(Trigger, OUTPUT);     //pin como salida
-    pinMode(Echo, INPUT);         //pin como entrada
-    digitalWrite(Trigger, LOW);   //Inicializamos el pin con 0
+    TempAqua.begin();             //Inicializamos el sensor de temperatura del agua
+   // rtc.adjust(DateTime(__DATE__, __TIME__)); // Lee la fecha y hora del PC (Solo en la primera carga)
+
+//------------------------------------------------------------------------------------
+    EstadoLuzMemoria = EEPROM.read(0);
+
 //-----------------------------------------------------------------------------------  
 
     for (r=0; r<12; r++) pinMode(RGB[r], OUTPUT);  //Contador para barrer el arreglo de RGB y asignarlos con salidas
 
 //-----------------------------------------------------------------------------------
-      
+//-----------------------------------------------------------------------------------  
+    pinMode(PinTrig, OUTPUT);     //pin como salida
+    pinMode(PinEcho, INPUT);         //pin como entrada
+    
+
+//------------------------------------------------------------------------------------
+    pinMode( POWER_PIN , OUTPUT );
+
+//------------------------------------------------------------------------------------
+
     wdt_enable(WDTO_4S);          //Tiempo de espera del perro guardian para hacer un resect del codigo si se queda en un bucle infinito
-    Tira1LucesOff();
-    Tira2LucesOff();
-    Tira3LucesOff();
-    Tira4LucesOff();
+
+//-------------------------------------------------------------------------------------
+
+    if(EstadoLuzMemoria == 1){
+
+        Tira1LucesFullSpectre();
+        Tira2LucesFullSpectre();
+        Tira3LucesFullSpectre();
+        Tira4LucesFullSpectre();
+        EstadoLuz = "ON";
+    }
+    else{
+
+        Tira1LucesOff();
+        Tira2LucesOff();
+        Tira3LucesOff();
+        Tira4LucesOff();
+        EstadoLuz = "OFF";
+    }
     Serial.println("Sistema encendido");
+    //Serial.print(nombreDia[diaDeLaSemana]);Serial.print(" "); Serial.print(dia); Serial.print(" de "); Serial.print(nombreMes[mes-1]); Serial.print(" del "); Serial.print(anio);
+    //Serial.println();
   
 }
 
@@ -139,13 +208,25 @@ void setup() {
 
 
 
-void loop() {
+void loop() 
+{
 
-  wdt_reset();           //Funcion del perro guardian
   botones();
   dataSensor();
-    }
+  EncedidoHoras();
+  SensorNivelAqua();
+  EncedidoPython();
+  
+  
+  //SensorEC();
+ 
+}
+  
+    
    
+
+
+
    void Tira1LucesFullSpectre(){
     analogWrite (T1green,0);
     analogWrite (T1red,255);

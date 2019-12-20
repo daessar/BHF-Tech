@@ -1,8 +1,5 @@
 void botones (){
-
-
- time = millis();  
-               //Funcion del tiempo en millis
+               
     if (pantalla.available()){      //Condicional que asigna los datos de la comunicacion serial a la variable data
         Data = pantalla.read();
   }
